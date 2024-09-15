@@ -1,0 +1,17 @@
+# Packaging
+# python -m pip install -U pip
+setuptools>=73.0.1
+virtualenv>=20.26.3
+
+# Linting/Formatting
+ruff>=0.6.2
+black>=24.8.0
+isort>=5.13.2
+
+# Tooling
+pre-commit>=3.8.0
+nbqa>=1.8.7
+
+# Type Checker
+mypy>=1.11.1
+mypy-extensions>=1.0.0
