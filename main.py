@@ -44,7 +44,7 @@ def write_logs_to_file(logs):
         json.dump([log.to_dict() for log in logs], file, indent=2)
 
 
-def get_emoji(type):
+def get_emoji(type: str) -> str:
     if type == pycaching.log.Type.didnt_find_it:
         return "❌"
     elif type == pycaching.log.Type.needs_maintenance:
@@ -56,7 +56,7 @@ def get_emoji(type):
 
 
 class Log:
-    def __init__(self, author, type, cache, date, id, cache_name):
+    def __init__(self, author: str, type: str, cache: str, date, id: str, cache_name: str):
         self.author = author
         self.type = type
         self.cache = cache
@@ -100,6 +100,7 @@ def get_logs():
 
 def main():
     logs = read_logs_from_file()
+    logs = [log for log in logs if log.date > datetime.now() - timedelta(days=30)]  # Remove logs older than 30 days
     last30days = datetime.now() - timedelta(days=30)
     while True:
         print("Checking for new logs")
@@ -107,7 +108,7 @@ def main():
         my_caches = get_logs()
         for cache in my_caches:
             print("Checking cache", cache)
-            logbook = cache.load_logbook(limit=10)
+            logbook = cache.load_logbook(limit=2)
             for log in logbook:
                 if (
                     log.type == pycaching.log.Type.didnt_find_it
@@ -128,7 +129,8 @@ def main():
 
         if logs_of_last_mail != logs:
             send_mail(logs, logs_of_last_mail)
-            write_logs_to_file(logs)
+
+        write_logs_to_file(logs)
 
         print("Sleeping for 1 hour")
         time.sleep(3600)
@@ -140,7 +142,7 @@ def send_mail(logs, logs_of_last_mail):
         server.starttls()
         server.ehlo()
         server.login(os.getenv("GMAIL_EMAIL"), os.getenv("GMAIL_PW"))
-        subject = "Neuer Log, der nicht gefunden wurde oder Wartung benötigt"
+        subject = "Neuer Cache, der nicht gefunden wurde oder Wartung benötigt"
         body = f"""Es gibt neue Logs, die nicht gefunden wurden oder Wartung benötigen:\n\n
         {'\n'.join([str(log) for log in logs if log not in logs_of_last_mail])}
         {len(logs_of_last_mail) == 0 and '\nBisherige Logs:'}
