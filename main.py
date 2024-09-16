@@ -132,8 +132,8 @@ def main():
 
         write_logs_to_file(logs)
 
-        print("Sleeping for 1 hour")
-        time.sleep(3600)
+        print(f"Sleeping for {os.getenv('SLEEP_TIME') / 3600} hours")
+        time.sleep(os.getenv("SLEEP_TIME", 3600 * 24 * 3))
 
 
 def send_mail(logs, logs_of_last_mail):
