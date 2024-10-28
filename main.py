@@ -104,7 +104,7 @@ class Cache:
         self,
         wp: str,
         name: str,
-        not_found_logs: list[Log],
+        not_found_logs: list[Log] = [],
         new_logs: bool = False,
         last_ten_logs_status: list[pycaching.log.Type] = [],
     ):
@@ -133,7 +133,7 @@ class Cache:
             raise TypeError("Data must be a dictionary")
 
 
-def get_logs():
+def get_my_caches():
     geocaching = pycaching.login()
     return geocaching.advanced_search(options={"hb": "betzebuwe"}, limit=100)
 
@@ -155,20 +155,33 @@ def count_logs_between(logs):
 
 
 def main():
-    caches = read_caches_from_file()
-    caches = [
-        cache
-        for cache in caches
-        if any(
-            datetime.strptime(log.date, "%Y-%m-%d") > datetime.now() - timedelta(days=30)
-            for log in cache.not_found_logs
-        )
-    ]  # Remove caches with logs older than 30 days
-    last30days = datetime.now() - timedelta(days=30)
-    while True:
+    print("Welchen Modus möchtest du starten?")
+    print("1. Alle Caches einmalig anzeigen")
+    print(
+        "2. [Im konfigurierten Intervall (z.B. 3 Tage)] Nur Caches, die in den letzten 30 Tagen nicht gefunden wurden"
+    )
+    mode = input("Zahl eingeben (1 oder 2): ")
+
+    if mode == "1":
+        caches = []
+    elif mode == "2":
+        caches = [
+            cache
+            for cache in read_caches_from_file()
+            if any(
+                datetime.strptime(log.date, "%Y-%m-%d") > datetime.now() - timedelta(days=30)
+                for log in cache.not_found_logs
+            )
+        ]
+    else:
+        print("Ungültige Eingabe")
+        return
+
+    while mode == "2":
+        last30days = datetime.now() - timedelta(days=30)
         print("Checking for new logs")
         caches_of_last_mail = caches.copy()
-        my_caches = get_logs()
+        my_caches = get_my_caches()
         updates_found = False
 
         for cache in my_caches:
@@ -227,6 +240,25 @@ def main():
         print(f"Sleeping for {int(os.getenv('SLEEP_TIME')) / 3600} hours")
         time.sleep(int(os.getenv("SLEEP_TIME", 3600 * 24 * 3)))
 
+    if mode == "1":
+        my_caches = get_my_caches()
+        for cache in my_caches:
+            print("Checking cache", cache)
+            logbook = fetch_last_10_logs(cache)
+            caches.append(
+                Cache(
+                    wp=cache.wp,
+                    name=cache.name,
+                    last_ten_logs_status=[log.type for log in logbook],
+                )
+            )
+
+        caches.sort(key=lambda cache: cache.name)
+
+        send_mail(caches, [])
+
+        print("Finished")
+
 
 def send_mail(caches, caches_of_last_mail):
     with smtplib.SMTP(host="smtp.gmail.com", port=587) as server:
@@ -274,6 +306,8 @@ def generate_html_body(caches: list[Cache], caches_of_last_mail):
             for log in cache.not_found_logs:
                 formatted_date = format_date(log.date)
                 html_str += f'<div class="log-entry">- {log.author} am {formatted_date}: {get_emoji(log.type)} {log.type.name}</div>'
+            html_str += "<hr>"
+        html_str += f"<div> Legende: {get_emoji(pycaching.log.Type.found_it)} Gefunden | {get_emoji(pycaching.log.Type.didnt_find_it)} Nicht gefunden | {get_emoji(pycaching.log.Type.needs_maintenance)} Wartung benötigt | {get_emoji(pycaching.log.Type.owner_maintenance)} Wartung erfolgt | {get_emoji(pycaching.log.Type.needs_archive)} Archivierung benötigt | {get_emoji(pycaching.log.Type.temp_disable_listing)} Listing deaktiviert | {get_emoji(pycaching.log.Type.enable_listing)} Listing aktiviert | {get_emoji(pycaching.log.Type.note)} Notiz</div>"
 
     html_str += """
         </div>
